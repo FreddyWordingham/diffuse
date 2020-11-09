@@ -17,6 +17,8 @@ use std::{
 struct Parameters {
     /// Wall clock time.
     time: f64,
+    /// Minimum time step.
+    min_step: f64,
     /// Sampling grid settings.
     grid: Redirect<GridBuilder>,
 }
