@@ -1,9 +1,90 @@
 [package]
+authors = ["Freddy Wordingham <fjmw201@exeter.ac.uk>"]
 name = "diffuse"
 version = "0.1.0"
-authors = ["Freddy Wordingham <fjmw201@exeter.ac.uk>"]
+description = "Diffusion simulation calculation."
+repository = "https://github.com/FreddyWordingham/diffuse"
+readme = "README.md"
+keywords = ["diffusion"]
+categories = ["science", "simulation"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT OR Apache-2.0"
+documentation = "https://freddywordingham.github.io/diffuse"
+exclude = ["./docs/", "./input/", "./output/"]
 
 [dependencies]
+# arctk = { path = "../arctk", features = ["netcdf", "terminal_size"] }
+# arctk-attr = { path = "../arctk-attr" }
+# arctk-proc = { path = "../arctk-proc" }
+arctk = { version = "0.11.1", features = ["netcdf", "terminal_size"] }
+arctk-attr = "0.2.*"
+arctk-proc = "0.2.*"
+ndarray = { version = "0.13.*", features = ["rayon"] }
+num_cpus = "1.13.*"
+rayon = "1.5.*"
+serde = { version = "1.0.*", features = ["derive"] }
+
+[profile.dev]
+# Development profile: "cargo build".
+opt-level = 0
+debug = true
+rpath = false
+lto = false
+debug-assertions = true
+codegen-units = 16
+panic = 'unwind'
+incremental = true
+overflow-checks = true
+
+[profile.release]
+# Release profile: "cargo build --release"
+# # [DEV RELEASE]
+opt-level = 3
+debug = true
+rpath = false
+lto = false
+debug-assertions = true
+codegen-units = 16
+panic = "unwind"
+incremental = false
+overflow-checks = true
+
+# [profile.release]
+# # [RELEASE]
+# # Release profile: "cargo build --release"
+# opt-level = 3
+# debug = false
+# rpath = false
+# lto = "fat"
+# debug-assertions = false
+# codegen-units = 1
+# panic = "abort"
+# incremental = false
+# overflow-checks = false
+
+[profile.test]
+# Testing profile: "cargo test"
+opt-level = 0
+debug = 2
+rpath = false
+lto = false
+debug-assertions = true
+codegen-units = 16
+incremental = true
+overflow-checks = true
+
+[profile.bench]
+# Benchmark profile: "cargo bench" (and "cargo test --release)".
+opt-level = 3
+debug = false
+rpath = false
+lto = "fat"
+debug-assertions = false
+codegen-units = 1
+incremental = false
+overflow-checks = false
+
+[package.metadata.docs.rs]
+no-default-features = true
+default-target = "x86_64-apple-darwin"
+targets = ["x86_64-unknown-linux-gnu"]
