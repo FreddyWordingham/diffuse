@@ -7,6 +7,7 @@ use arctk::{
     util::{banner, dir},
 };
 use arctk_attr::input;
+use diffuse::input::Settings;
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
@@ -17,8 +18,8 @@ use std::{
 struct Parameters {
     /// Wall clock time.
     time: f64,
-    /// Minimum time step.
-    min_step: f64,
+    /// Integration settings.
+    sett: Settings,
     /// Sampling grid settings.
     grid: Redirect<GridBuilder>,
 }

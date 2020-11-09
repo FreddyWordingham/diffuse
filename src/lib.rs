@@ -28,3 +28,5 @@
     clippy::unreachable,
     clippy::unwrap_used
 )]
+
+pub mod input;
