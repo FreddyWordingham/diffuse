@@ -18,6 +18,10 @@ use std::{
 struct Parameters {
     /// Wall clock time.
     time: f64,
+    /// Initial state.
+    init: PathBuf,
+    /// Coefficient map.
+    coeffs: PathBuf,
     /// Integration settings.
     sett: Redirect<Settings>,
     /// Sampling grid settings.
