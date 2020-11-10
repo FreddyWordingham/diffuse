@@ -8,6 +8,7 @@ use arctk::{
 };
 use arctk_attr::input;
 use diffuse::input::Settings;
+use ndarray::Array3;
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
@@ -37,7 +38,7 @@ pub fn main() {
 
     let params = input(term_width, &in_dir, &params_path);
 
-    let grid_sett = build(term_width, &in_dir, params);
+    let (time, init, coeffs, sett, grid_sett) = build(term_width, &in_dir, params);
 
     let _grid = grow(term_width, grid_sett);
 
@@ -83,15 +84,36 @@ fn input(term_width: usize, in_dir: &Path, params_path: &Path) -> Parameters {
 
 /// Build instances.
 #[allow(clippy::type_complexity)]
-fn build(term_width: usize, in_dir: &Path, params: Parameters) -> GridBuilder {
+fn build(
+    term_width: usize,
+    in_dir: &Path,
+    params: Parameters,
+) -> (f64, Array3<f64>, Array3<f64>, Settings, GridBuilder) {
     banner::section("Building", term_width);
-    banner::sub_section("Measurement Grid Settings", term_width);
+    banner::sub_section("Wall Clock Time", term_width);
+    let time = params.time;
+
+    banner::sub_section("Initial Values", term_width);
+    let init =
+        Array3::load(&in_dir.join(params.init)).expect("Failed to load initial value array.");
+
+    banner::sub_section("Coefficents", term_width);
+    let coeffs =
+        Array3::load(&in_dir.join(params.coeffs)).expect("Failed to load coefficient value array.");
+
+    banner::sub_section("Integration Settings", term_width);
+    let sett = params
+        .sett
+        .build(in_dir)
+        .expect("Failed to redirect integration settings.");
+
+    banner::sub_section("Grid Settings", term_width);
     let grid_sett = params
         .grid
         .build(in_dir)
         .expect("Failed to redirect grid settings.");
 
-    grid_sett
+    (time, init, coeffs, sett, grid_sett)
 }
 
 /// Grow domains.
