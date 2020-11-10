@@ -19,7 +19,7 @@ struct Parameters {
     /// Wall clock time.
     time: f64,
     /// Integration settings.
-    sett: Settings,
+    sett: Redirect<Settings>,
     /// Sampling grid settings.
     grid: Redirect<GridBuilder>,
 }
