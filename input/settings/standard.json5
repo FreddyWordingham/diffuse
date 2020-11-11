@@ -1,3 +1,4 @@
 {
     step_multiplier : 0.4,
+    block_size      : 64,
 }

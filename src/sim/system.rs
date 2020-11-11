@@ -6,7 +6,7 @@ use arctk::{
     geom::Grid,
     math::Vec3,
     ord::{X, Y},
-    tools::ProgressBar,
+    tools::{ProgressBar, SilentProgressBar},
 };
 use ndarray::Array3;
 use ndarray_stats::QuantileExt;
@@ -63,9 +63,9 @@ impl<'a> System<'a> {
             pb.tick();
 
             rate = self
-                // .multi_thread(&values)
-                // .expect("Failed to calculate diffusion rate.");
-                .single_thread(&values);
+                .multi_thread(&values)
+                .expect("Failed to calculate diffusion rate.");
+            // .single_thread(&values);
             values += &(rate * dt);
         }
 
@@ -80,15 +80,22 @@ impl<'a> System<'a> {
     pub fn multi_thread(&self, values: &Array3<f64>) -> Result<Array3<f64>, Error> {
         debug_assert!(values.shape() == self.coeffs.shape());
 
-        let pb = ProgressBar::new("Multi-threaded", self.grid.total_cells() as u64);
+        let pb = SilentProgressBar::new(self.grid.total_cells() as u64);
         let pb = Arc::new(Mutex::new(pb));
 
         let threads: Vec<_> = (0..num_cpus::get()).collect();
         let mut out: Vec<_> = threads
             .par_iter()
-            .map(|_id| Self::thread(&Arc::clone(&pb), self.grid, values, self.coeffs))
+            .map(|_id| {
+                Self::thread(
+                    &Arc::clone(&pb),
+                    self.sett.block_size(),
+                    self.grid,
+                    values,
+                    self.coeffs,
+                )
+            })
             .collect();
-        pb.lock()?.finish_with_message("Step complete.");
 
         let mut data = out.pop().expect("No data received.");
         while let Some(o) = out.pop() {
@@ -103,10 +110,10 @@ impl<'a> System<'a> {
     #[inline]
     #[must_use]
     pub fn single_thread(&self, values: &Array3<f64>) -> Array3<f64> {
-        let pb = ProgressBar::new("Single-threaded", self.grid.total_cells() as u64);
+        let pb = SilentProgressBar::new(self.grid.total_cells() as u64);
         let pb = Arc::new(Mutex::new(pb));
 
-        Self::thread(&pb, self.grid, values, self.coeffs)
+        Self::thread(&pb, self.sett.block_size(), self.grid, values, self.coeffs)
     }
 
     /// Thread control function.
@@ -115,42 +122,49 @@ impl<'a> System<'a> {
     #[inline]
     #[must_use]
     fn thread(
-        _pb: &Arc<Mutex<ProgressBar>>,
+        pb: &Arc<Mutex<SilentProgressBar>>,
+        block_size: u64,
         grid: &Grid,
         values: &Array3<f64>,
         coeffs: &Array3<f64>,
     ) -> Array3<f64> {
         let rates = Array3::zeros(*grid.res());
-        diff_rate(grid.voxel_size(), values, coeffs, rates)
-    }
-}
-
-/// Calculate the diffusion rates for each cell.
-#[inline]
-#[must_use]
-pub fn diff_rate(
-    cell_size: &Vec3,
-    values: &Array3<f64>,
-    coeffs: &Array3<f64>,
-    mut rate: Array3<f64>,
-) -> Array3<f64> {
-    debug_assert!(values.shape() == coeffs.shape());
-
-    let num_cells = values.len();
-
-    let res = values.shape();
-
-    for n in 0..num_cells {
-        let xi = n % res[X];
-        let yi = (n / res[X]) % res[Y];
-        let zi = n / (res[X] * res[Y]);
-
-        let index = [xi, yi, zi];
-
-        let stencil = Gradient::new(index, values);
-        let r = stencil.rate(coeffs[index], cell_size);
-        rate[index] = r;
+        Self::diff_rate(pb, block_size, grid.voxel_size(), values, coeffs, rates)
     }
 
-    rate
+    /// Calculate the diffusion rates for each cell.
+    #[inline]
+    #[must_use]
+    fn diff_rate(
+        pb: &Arc<Mutex<SilentProgressBar>>,
+        block_size: u64,
+        cell_size: &Vec3,
+        values: &Array3<f64>,
+        coeffs: &Array3<f64>,
+        mut rate: Array3<f64>,
+    ) -> Array3<f64> {
+        debug_assert!(values.shape() == coeffs.shape());
+
+        let res = values.shape();
+        while let Some((start, end)) = {
+            let mut pb = pb.lock().expect("Could not lock progress bar.");
+            let b = pb.block(block_size);
+            std::mem::drop(pb);
+            b
+        } {
+            for n in start as usize..end as usize {
+                let xi = n % res[X];
+                let yi = (n / res[X]) % res[Y];
+                let zi = n / (res[X] * res[Y]);
+
+                let index = [xi, yi, zi];
+
+                let stencil = Gradient::new(index, values);
+                let r = stencil.rate(coeffs[index], cell_size);
+                rate[index] = r;
+            }
+        }
+
+        rate
+    }
 }
