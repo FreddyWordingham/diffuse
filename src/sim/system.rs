@@ -1,6 +1,6 @@
 //! Simulation input structure.
 
-use crate::{input::Settings, output::Data, parts::Gradient};
+use crate::{output::Data, parts::Gradient, sim::Settings};
 use arctk::{
     err::Error,
     geom::Grid,

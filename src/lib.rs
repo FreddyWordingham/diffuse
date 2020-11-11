@@ -29,7 +29,6 @@
     clippy::unwrap_used
 )]
 
-pub mod input;
 pub mod output;
 pub mod parts;
 pub mod sim;

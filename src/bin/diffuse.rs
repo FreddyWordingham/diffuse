@@ -7,7 +7,10 @@ use arctk::{
     util::{banner, dir},
 };
 use arctk_attr::input;
-use diffuse::{input::Settings, output::Data, sim::System};
+use diffuse::{
+    output::Data,
+    sim::{Settings, System},
+};
 use ndarray::Array3;
 use std::{
     env::current_dir,
