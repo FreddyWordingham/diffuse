@@ -1,7 +1,13 @@
 //! Simulation input structure.
 
-use crate::{input::Settings, output::Data};
-use arctk::{err::Error, geom::Grid, tools::ProgressBar};
+use crate::{input::Settings, output::Data, parts::Gradient};
+use arctk::{
+    err::Error,
+    geom::Grid,
+    math::Vec3,
+    ord::{X, Y},
+    tools::ProgressBar,
+};
 use ndarray::Array3;
 use ndarray_stats::QuantileExt;
 use rayon::prelude::*;
@@ -57,8 +63,9 @@ impl<'a> System<'a> {
             pb.tick();
 
             rate = self
-                .multi_thread(&values)
-                .expect("Failed to calculate diffusion rate.");
+                // .multi_thread(&values)
+                // .expect("Failed to calculate diffusion rate.");
+                .single_thread(&values);
             values += &(rate * dt);
         }
 
@@ -79,7 +86,7 @@ impl<'a> System<'a> {
         let threads: Vec<_> = (0..num_cpus::get()).collect();
         let mut out: Vec<_> = threads
             .par_iter()
-            .map(|_id| Self::thread(&Arc::clone(&pb), self.grid, values))
+            .map(|_id| Self::thread(&Arc::clone(&pb), self.grid, values, self.coeffs))
             .collect();
         pb.lock()?.finish_with_message("Step complete.");
 
@@ -99,7 +106,7 @@ impl<'a> System<'a> {
         let pb = ProgressBar::new("Single-threaded", self.grid.total_cells() as u64);
         let pb = Arc::new(Mutex::new(pb));
 
-        Self::thread(&pb, self.grid, values)
+        Self::thread(&pb, self.grid, values, self.coeffs)
     }
 
     /// Thread control function.
@@ -107,35 +114,43 @@ impl<'a> System<'a> {
     #[allow(clippy::expect_used)]
     #[inline]
     #[must_use]
-    fn thread(pb: &Arc<Mutex<ProgressBar>>, grid: &Grid, _values: &Array3<f64>) -> Array3<f64> {
+    fn thread(
+        _pb: &Arc<Mutex<ProgressBar>>,
+        grid: &Grid,
+        values: &Array3<f64>,
+        coeffs: &Array3<f64>,
+    ) -> Array3<f64> {
         let rates = Array3::zeros(*grid.res());
-
-        rates
+        diff_rate(grid.voxel_size(), values, coeffs, rates)
     }
 }
 
-// /// Calculate the diffusion rates for each cell.
-// #[inline]
-// #[must_use]
-// pub fn diff_rate(cell_size: &Vec3, values: &Array3<f64>, coeffs: &Array3<f64>) -> Array3<f64> {
-//     debug_assert!(concs.shape() == coeffs.shape());
+/// Calculate the diffusion rates for each cell.
+#[inline]
+#[must_use]
+pub fn diff_rate(
+    cell_size: &Vec3,
+    values: &Array3<f64>,
+    coeffs: &Array3<f64>,
+    mut rate: Array3<f64>,
+) -> Array3<f64> {
+    debug_assert!(values.shape() == coeffs.shape());
 
-//     let num_cells = values.len();
+    let num_cells = values.len();
 
-//     let mut rate = Array3::zeros(values.raw_dim());
-//     let res = values.shape();
+    let res = values.shape();
 
-//     for n in 0..num_cells {
-//         let xi = n % res[X];
-//         let yi = (n / res[X]) % res[Y];
-//         let zi = n / (res[X] * res[Y]);
+    for n in 0..num_cells {
+        let xi = n % res[X];
+        let yi = (n / res[X]) % res[Y];
+        let zi = n / (res[X] * res[Y]);
 
-//         let index = [xi, yi, zi];
+        let index = [xi, yi, zi];
 
-//         let stencil = Gradient::new(index, values);
-//         let r = stencil.rate(coeffs[index], cell_size);
-//         rate[index] = r;
-//     }
+        let stencil = Gradient::new(index, values);
+        let r = stencil.rate(coeffs[index], cell_size);
+        rate[index] = r;
+    }
 
-//     rate
-// }
+    rate
+}
