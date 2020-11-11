@@ -4,6 +4,8 @@ use crate::{input::Settings, output::Data};
 use arctk::{err::Error, geom::Grid, tools::ProgressBar};
 use ndarray::Array3;
 use ndarray_stats::QuantileExt;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 /// Simulation input structure.
 pub struct System<'a> {
@@ -29,11 +31,11 @@ impl<'a> System<'a> {
     #[allow(clippy::expect_used)]
     #[inline]
     #[must_use]
-    pub fn sim(&self, time: f64, values: Array3<f64>) -> Data {
+    pub fn sim(&self, time: f64, mut values: Array3<f64>) -> Data {
         debug_assert!(time > 0.0);
         debug_assert!(values.shape() == self.grid.res());
 
-        let data = Data::new(values);
+        // let data = Data::new(values);
 
         let voxel_size = self.grid.voxel_size();
         let dx = voxel_size.min();
@@ -45,24 +47,22 @@ impl<'a> System<'a> {
         let max_dt = (dx * dx) / (4.0 * max_coeff);
         let dt = max_dt * self.sett.step_multiplier();
 
-        let num_steps = (time / max_dt).ceil();
+        let num_steps = (time / dt).ceil();
         let dt = time / num_steps;
         let num_steps = num_steps as u64;
 
-        let num_cells = self.grid.total_cells();
-        let mut rate: Array3<f64> = Array3::zeros(*self.grid.res());
-
+        let mut rate;
         let mut pb = ProgressBar::new("Diffusing", num_steps as u64);
         for _ in 0..num_steps {
             pb.tick();
 
-            let rate = self
+            rate = self
                 .multi_thread(&values)
                 .expect("Failed to calculate diffusion rate.");
             values += &(rate * dt);
         }
 
-        data
+        Data::new(values)
     }
 
     /// Run a multi-threaded diffusion simulation.
@@ -73,9 +73,44 @@ impl<'a> System<'a> {
     pub fn multi_thread(&self, values: &Array3<f64>) -> Result<Array3<f64>, Error> {
         debug_assert!(values.shape() == self.coeffs.shape());
 
-        values.
+        let pb = ProgressBar::new("Multi-threaded", self.grid.total_cells() as u64);
+        let pb = Arc::new(Mutex::new(pb));
 
-        // Ok(data)
+        let threads: Vec<_> = (0..num_cpus::get()).collect();
+        let mut out: Vec<_> = threads
+            .par_iter()
+            .map(|_id| Self::thread(&Arc::clone(&pb), self.grid, values))
+            .collect();
+        pb.lock()?.finish_with_message("Step complete.");
+
+        let mut data = out.pop().expect("No data received.");
+        while let Some(o) = out.pop() {
+            data += &o;
+        }
+
+        Ok(data)
+    }
+
+    /// Run a cartography simulation using a single thread.
+    #[allow(clippy::module_name_repetitions)]
+    #[inline]
+    #[must_use]
+    pub fn single_thread(&self, values: &Array3<f64>) -> Array3<f64> {
+        let pb = ProgressBar::new("Single-threaded", self.grid.total_cells() as u64);
+        let pb = Arc::new(Mutex::new(pb));
+
+        Self::thread(&pb, self.grid, values)
+    }
+
+    /// Thread control function.
+    #[allow(clippy::module_name_repetitions)]
+    #[allow(clippy::expect_used)]
+    #[inline]
+    #[must_use]
+    fn thread(pb: &Arc<Mutex<ProgressBar>>, grid: &Grid, _values: &Array3<f64>) -> Array3<f64> {
+        let rates = Array3::zeros(*grid.res());
+
+        rates
     }
 }
 
