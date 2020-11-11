@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Settings","Loadable input diffusion settings structure."]]});
