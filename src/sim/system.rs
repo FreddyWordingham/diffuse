@@ -37,11 +37,9 @@ impl<'a> System<'a> {
     #[allow(clippy::expect_used)]
     #[inline]
     #[must_use]
-    pub fn sim(&self, time: f64, mut values: Array3<f64>) -> Data {
+    pub fn sim(&self, time: f64, mut data: Data) -> Data {
         debug_assert!(time > 0.0);
-        debug_assert!(values.shape() == self.grid.res());
-
-        // let data = Data::new(values);
+        debug_assert!(data.values.shape() == self.grid.res());
 
         let voxel_size = self.grid.voxel_size();
         let dx = voxel_size.min();
@@ -63,13 +61,14 @@ impl<'a> System<'a> {
             pb.tick();
 
             rate = self
-                .multi_thread(&values)
+                .multi_thread(&data.values)
                 .expect("Failed to calculate diffusion rate.");
             // .single_thread(&values);
-            values += &(rate * dt);
+            data.values += &(rate * dt);
+            data.time += dt;
         }
 
-        Data::new(values)
+        data
     }
 
     /// Run a multi-threaded diffusion simulation.

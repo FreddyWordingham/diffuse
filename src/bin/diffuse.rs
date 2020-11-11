@@ -17,8 +17,10 @@ use std::{
 // Input parameters.
 #[input]
 struct Parameters {
-    /// Wall clock time.
-    time: f64,
+    /// Total wall clock time.
+    total_time: f64,
+    /// Intermediate output steps.
+    steps: Option<u64>,
     /// Initial state.
     init: PathBuf,
     /// Coefficient map.
@@ -38,7 +40,7 @@ pub fn main() {
 
     let params = input(term_width, &in_dir, &params_path);
 
-    let (time, init, coeffs, sett, grid_sett) = build(term_width, &in_dir, params);
+    let (total_time, steps, init, coeffs, sett, grid_sett) = build(term_width, &in_dir, params);
 
     let grid = grow(term_width, grid_sett);
 
@@ -46,11 +48,19 @@ pub fn main() {
 
     pre_analysis(term_width, &init);
 
-    let output = simulate(term_width, time, init, &system);
+    let sim_loop = || -> Data {
+        let mut data = Data::new(init);
+        let dt = total_time / steps as f64;
+        for _ in 0..steps {
+            let output = simulate(term_width, dt, data, &system);
+            save(term_width, &out_dir, &output);
+            data = output;
+        }
+        data
+    };
+    let output = sim_loop();
 
     post_analysis(term_width, &output);
-
-    save(term_width, &out_dir, &output);
 
     banner::section("Finished", term_width);
 }
@@ -90,10 +100,13 @@ fn build(
     term_width: usize,
     in_dir: &Path,
     params: Parameters,
-) -> (f64, Array3<f64>, Array3<f64>, Settings, GridBuilder) {
+) -> (f64, u64, Array3<f64>, Array3<f64>, Settings, GridBuilder) {
     banner::section("Building", term_width);
-    banner::sub_section("Wall Clock Time", term_width);
-    let time = params.time;
+    banner::sub_section("Total wall Clock Time", term_width);
+    let total_time = params.total_time;
+
+    banner::sub_section("Intermediate steps", term_width);
+    let steps = params.steps.unwrap_or(1);
 
     banner::sub_section("Initial Values", term_width);
     let init =
@@ -115,7 +128,7 @@ fn build(
         .build(in_dir)
         .expect("Failed to redirect grid settings.");
 
-    (time, init, coeffs, sett, grid_sett)
+    (total_time, steps, init, coeffs, sett, grid_sett)
 }
 
 /// Grow domains.
@@ -135,9 +148,9 @@ fn pre_analysis(term_width: usize, values: &Array3<f64>) {
 }
 
 /// Tun the simulation.
-fn simulate(term_width: usize, time: f64, values: Array3<f64>, sys: &System) -> Data {
+fn simulate(term_width: usize, time: f64, data: Data, sys: &System) -> Data {
     banner::section("Simulating", term_width);
-    sys.sim(time, values)
+    sys.sim(time, data)
 }
 
 /// Review the output data.
