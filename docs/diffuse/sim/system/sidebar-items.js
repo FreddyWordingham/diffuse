@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["diff_rate","Calculate the diffusion rates for each cell."]],"struct":[["System","Simulation input structure."]]});
+initSidebarItems({"struct":[["System","Simulation input structure."]]});

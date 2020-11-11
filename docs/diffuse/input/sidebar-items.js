@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["settings","Diffusion simulation settings structure."]]});

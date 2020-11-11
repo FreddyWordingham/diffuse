@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["system","Simulation input structure."]]});
+initSidebarItems({"mod":[["settings","Diffusion simulation settings structure."],["system","Simulation input structure."]]});
