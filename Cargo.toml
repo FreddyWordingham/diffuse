@@ -10,7 +10,7 @@ categories = ["science", "simulation"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 documentation = "https://freddywordingham.github.io/diffuse"
-exclude = ["./docs/", "./input/", "./output/"]
+exclude = ["docs/", "input/"]
 
 [dependencies]
 # arctk = { path = "../arctk", features = ["netcdf", "terminal_size"] }
