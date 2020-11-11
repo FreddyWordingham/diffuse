@@ -48,17 +48,7 @@ pub fn main() {
 
     pre_analysis(term_width, &init);
 
-    let sim_loop = || -> Data {
-        let mut data = Data::new(init);
-        let dt = total_time / steps as f64;
-        for _ in 0..steps {
-            let output = simulate(term_width, dt, data, &system);
-            save(term_width, &out_dir, &output);
-            data = output;
-        }
-        data
-    };
-    let output = sim_loop();
+    let output = sim_loop(term_width, &out_dir, total_time, steps, init, &system);
 
     post_analysis(term_width, &output);
 
@@ -147,10 +137,26 @@ fn pre_analysis(term_width: usize, values: &Array3<f64>) {
     println!("{:>32} : {}", "total", values.sum());
 }
 
-/// Tun the simulation.
-fn simulate(term_width: usize, time: f64, data: Data, sys: &System) -> Data {
+/// Run the repeating steps of the simulation.
+fn sim_loop(
+    term_width: usize,
+    out_dir: &Path,
+    total_time: f64,
+    steps: u64,
+    init: Array3<f64>,
+    sys: &System,
+) -> Data {
     banner::section("Simulating", term_width);
-    sys.sim(time, data)
+    let dt = total_time / steps as f64;
+
+    let mut data = Data::new(init);
+    for _ in 0..steps {
+        let output = sys.sim(dt, data);
+        output.save(&out_dir).expect("Failed to save output data.");
+        data = output;
+    }
+
+    data
 }
 
 /// Review the output data.
@@ -159,11 +165,4 @@ fn post_analysis(term_width: usize, output: &Data) {
 
     let values = &output.values;
     println!("{:>32} : {}", "total", values.sum());
-}
-
-/// Save the output data.
-fn save(term_width: usize, out_dir: &Path, output: &Data) {
-    banner::section("Saving", term_width);
-
-    output.save(&out_dir).expect("Failed to save output data.");
 }

@@ -24,7 +24,7 @@ impl Data {
 impl Save for Data {
     #[inline]
     fn save(&self, out_dir: &Path) -> Result<(), Error> {
-        let p = out_dir.join(format!("{}ms.nc", (self.time * 1000.0) as u32));
+        let p = out_dir.join(format!("{:06}ms.nc", (self.time * 1000.0) as u32));
         println!("Saving: {}", p.display());
         self.values.save(&p)
     }
